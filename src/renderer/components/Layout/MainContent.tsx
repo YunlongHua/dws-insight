@@ -3,6 +3,7 @@ import { ViewType } from './Sidebar';
 import ClusterPanel from '../Cluster/ClusterPanel';
 import LLMPanel from '../LLM/LLMPanel';
 import ChatPanel from '../LLM/ChatPanel';
+import TuningPanel from '../Tuning/TuningPanel';
 
 interface MainContentProps {
   activeView: ViewType;
@@ -25,12 +26,7 @@ function MainContent({ activeView }: MainContentProps): React.ReactElement {
           </div>
         );
       case 'tuning':
-        return (
-          <div className="card">
-            <h2>DWS 调优</h2>
-            <p>调整数据库参数和性能优化</p>
-          </div>
-        );
+        return <TuningPanel />;
       case 'report':
         return (
           <div className="card">

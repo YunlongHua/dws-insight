@@ -60,6 +60,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('sql:compare', originalSql, optimizedSql),
   sqlDisconnect: (): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('sql:disconnect'),
+  // Tuning methods
+  tuningAnalyze: (sql: string): Promise<{ success: boolean; suggestions?: any[]; error?: string }> =>
+    ipcRenderer.invoke('tuning:analyze', sql),
+  tuningSaveRecord: (record: {
+    original_sql: string;
+    optimized_sql: string;
+    original_plan: string;
+    optimized_plan: string;
+    original_result: string;
+    optimized_result: string;
+    status: 'pending' | 'optimized' | 'failed';
+  }): Promise<{ success: boolean; data?: any; error?: string }> =>
+    ipcRenderer.invoke('tuning:saveRecord', record),
+  tuningGetRecords: (): Promise<{ success: boolean; data?: any[]; error?: string }> =>
+    ipcRenderer.invoke('tuning:getRecords'),
 });
 
 console.log('Preload script loaded');
