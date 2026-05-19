@@ -41,7 +41,7 @@ function createWindow(): void {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../renderer/index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
   mainWindow.on('closed', () => {
@@ -59,7 +59,7 @@ ipcMain.handle('get-app-path', () => {
 });
 
 // App lifecycle
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   log.info('App is ready');
 
   // Register IPC handlers
@@ -70,9 +70,9 @@ app.whenReady().then(() => {
   registerTestRunnerIPC();
   registerReportIPC();
 
-  // Initialize database
+  // Initialize database (async for sql.js)
   try {
-    initDatabase();
+    await initDatabase();
     log.info('Database initialized successfully');
   } catch (error) {
     log.error('Failed to initialize database:', error);

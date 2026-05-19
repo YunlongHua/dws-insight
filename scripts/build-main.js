@@ -1,5 +1,6 @@
 const esbuild = require('esbuild');
 const path = require('path');
+const fs = require('fs');
 
 async function build() {
   // Bundle main process
@@ -9,7 +10,7 @@ async function build() {
     platform: 'node',
     target: 'node18',
     outfile: 'dist/main/index.js',
-    external: ['electron', 'pg', 'better-sqlite3', 'electron-store', 'electron-log'],
+    external: ['electron', 'pg', 'electron-store', 'electron-log'],
     format: 'cjs',
     sourcemap: false,
   });
@@ -25,6 +26,14 @@ async function build() {
     format: 'cjs',
     sourcemap: false,
   });
+
+  // Copy sql-wasm.wasm for sql.js
+  const wasmSrc = path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
+  const wasmDest = path.join(__dirname, '..', 'dist', 'main', 'sql-wasm.wasm');
+  if (fs.existsSync(wasmSrc)) {
+    fs.copyFileSync(wasmSrc, wasmDest);
+    console.log('Copied sql-wasm.wasm');
+  }
 
   console.log('Main process build complete');
 }
