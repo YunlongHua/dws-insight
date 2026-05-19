@@ -4,6 +4,7 @@ import log from 'electron-log';
 import { initDatabase, closeDatabase } from './storage/database';
 import { registerClusterIPC } from './ipc/cluster';
 import { registerLLMIPC } from './ipc/llm';
+import { registerSQLIPC } from './ipc/sql';
 
 // Configure logging
 log.transports.file.level = 'info';
@@ -61,6 +62,7 @@ app.whenReady().then(() => {
   // Register IPC handlers
   registerClusterIPC();
   registerLLMIPC();
+  registerSQLIPC();
 
   // Initialize database
   try {

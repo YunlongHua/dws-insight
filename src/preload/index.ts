@@ -49,6 +49,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('llm:chat', request),
   llmGetMessages: (sessionId: string): Promise<{ success: boolean; data?: Message[]; error?: string }> =>
     ipcRenderer.invoke('llm:getMessages', sessionId),
+  // SQL methods
+  sqlConnect: (config: { host: string; port: number; database: string; user: string; password: string }): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('sql:connect', config),
+  sqlExecute: (sql: string): Promise<{ success: boolean; result?: any; error?: string }> =>
+    ipcRenderer.invoke('sql:execute', sql),
+  sqlPlan: (sql: string): Promise<{ success: boolean; plan?: any; error?: string }> =>
+    ipcRenderer.invoke('sql:plan', sql),
+  sqlCompare: (originalSql: string, optimizedSql: string): Promise<{ success: boolean; comparison?: any; error?: string }> =>
+    ipcRenderer.invoke('sql:compare', originalSql, optimizedSql),
+  sqlDisconnect: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('sql:disconnect'),
 });
 
 console.log('Preload script loaded');
