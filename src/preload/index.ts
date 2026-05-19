@@ -93,6 +93,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('report:create', name, description),
   reportDelete: (id: number): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('report:delete', id),
+  reportExportWord: (reportId: string, outputPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('report:exportWord', reportId, outputPath),
+  reportExportMarkdown: (reportId: string, outputPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('report:exportMarkdown', reportId, outputPath),
+  reportExportPDF: (reportId: string, outputPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('report:exportPDF', reportId, outputPath),
 });
 
 console.log('Preload script loaded');

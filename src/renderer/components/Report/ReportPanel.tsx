@@ -47,6 +47,9 @@ declare global {
       reportGetAll: () => Promise<{ success: boolean; data?: Report[]; error?: string }>;
       reportCreate: (name: string, description: string) => Promise<{ success: boolean; data?: Report; error?: string }>;
       reportDelete: (id: number) => Promise<{ success: boolean; error?: string }>;
+      reportExportWord: (reportId: string, outputPath: string) => Promise<{ success: boolean; error?: string }>;
+      reportExportMarkdown: (reportId: string, outputPath: string) => Promise<{ success: boolean; error?: string }>;
+      reportExportPDF: (reportId: string, outputPath: string) => Promise<{ success: boolean; error?: string }>;
     };
   }
 }
@@ -119,6 +122,42 @@ function ReportPanel(): React.ReactElement {
     // Refresh will happen automatically via TestCaseTable
   };
 
+  const handleExport = async (format: 'word' | 'markdown' | 'pdf') => {
+    if (!selectedReport) return;
+
+    const extension = format === 'word' ? 'docx' : format === 'markdown' ? 'md' : 'pdf';
+    const defaultPath = `${selectedReport.name.replace(/[^a-zA-Z0-9一-龥]/g, '_')}.${extension}`;
+
+    // For Electron, we'd typically use dialog.showSaveDialog, but for simplicity
+    // we'll use a prompt to get the path. In production, you'd integrate with Electron's dialog API.
+    const outputPath = prompt(`Enter output path for ${format.toUpperCase}:`, defaultPath);
+    if (!outputPath) return;
+
+    try {
+      let result;
+      switch (format) {
+        case 'word':
+          result = await window.electronAPI.reportExportWord(String(selectedReport.id), outputPath);
+          break;
+        case 'markdown':
+          result = await window.electronAPI.reportExportMarkdown(String(selectedReport.id), outputPath);
+          break;
+        case 'pdf':
+          result = await window.electronAPI.reportExportPDF(String(selectedReport.id), outputPath);
+          break;
+      }
+
+      if (result?.success) {
+        alert(`Report exported successfully to ${outputPath}`);
+      } else {
+        alert(`Export failed: ${result?.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('Export failed');
+    }
+  };
+
   return (
     <div className="report-panel">
       <div className="report-header">
@@ -167,9 +206,20 @@ function ReportPanel(): React.ReactElement {
             <>
               <div className="detail-header">
                 <h3>{selectedReport.name}</h3>
-                <button className="btn btn-primary" onClick={handleAddTestCase}>
-                  添加测试用例
-                </button>
+                <div className="detail-actions">
+                  <button className="btn btn-primary" onClick={handleAddTestCase}>
+                    添加测试用例
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => handleExport('word')}>
+                    导出Word
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => handleExport('markdown')}>
+                    导出Markdown
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => handleExport('pdf')}>
+                    导出PDF
+                  </button>
+                </div>
               </div>
               <p className="detail-description">{selectedReport.description}</p>
               <TestCaseTable reportId={selectedReport.id} />
