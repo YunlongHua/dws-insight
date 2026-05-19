@@ -10,6 +10,11 @@ function getDerivedEncryptionKey(): string {
   return crypto.createHash('sha256').update(salt).digest('hex').substring(0, 32);
 }
 
+export interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
 export interface ClusterConfig {
   id: string;
   name: string;
@@ -24,10 +29,11 @@ export interface ClusterConfig {
 }
 
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'azure';
+  provider: 'openai' | 'anthropic' | 'azure' | 'eimaas' | 'custom';
   apiKey: string;
   model?: string;
   endpoint?: string;
+  baseUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

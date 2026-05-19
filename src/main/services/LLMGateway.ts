@@ -1,21 +1,34 @@
 import log from 'electron-log';
+import { Message, LLMConfig } from '../storage/config';
 
-export interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-export interface LLMConfig {
-  provider: 'openai' | 'eimaas' | 'custom';
-  apiKey?: string;
-  baseUrl?: string;
-  model?: string;
-}
+// Re-export Message for backward compatibility with other modules
+export { Message };
 
 export interface LLMResponse {
   success: boolean;
   content?: string;
   error?: string;
+}
+
+// API response type interfaces
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+}
+
+interface EIMaaSResponse {
+  result?: {
+    content?: string;
+  };
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+  content?: string;
 }
 
 export const llmGateway = {
@@ -62,7 +75,7 @@ export const llmGateway = {
         return { success: false, error: `OpenAI API error: ${response.status} - ${errorData}` };
       }
 
-      const data = await response.json();
+      const data = await response.json() as OpenAIResponse;
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
@@ -100,7 +113,7 @@ export const llmGateway = {
         return { success: false, error: `EI-MaaS API error: ${response.status} - ${errorData}` };
       }
 
-      const data = await response.json();
+      const data = await response.json() as EIMaaSResponse;
       const content = data.result?.content || data.choices?.[0]?.message?.content || data.content;
 
       if (!content) {
@@ -141,7 +154,7 @@ export const llmGateway = {
         return { success: false, error: `Custom API error: ${response.status} - ${errorData}` };
       }
 
-      const data = await response.json();
+      const data = await response.json() as OpenAIResponse;
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
