@@ -4,6 +4,7 @@ import ClusterPanel from '../Cluster/ClusterPanel';
 import LLMPanel from '../LLM/LLMPanel';
 import ChatPanel from '../LLM/ChatPanel';
 import TuningPanel from '../Tuning/TuningPanel';
+import ReportPanel from '../Report/ReportPanel';
 
 interface MainContentProps {
   activeView: ViewType;
@@ -28,12 +29,7 @@ function MainContent({ activeView }: MainContentProps): React.ReactElement {
       case 'tuning':
         return <TuningPanel />;
       case 'report':
-        return (
-          <div className="card">
-            <h2>测试报告</h2>
-            <p>查看和导出测试结果报告</p>
-          </div>
-        );
+        return <ReportPanel />;
       case 'history':
         return (
           <div className="card">

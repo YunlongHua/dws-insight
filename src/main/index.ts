@@ -6,6 +6,8 @@ import { registerClusterIPC } from './ipc/cluster';
 import { registerLLMIPC } from './ipc/llm';
 import { registerSQLIPC } from './ipc/sql';
 import { registerTuningIPC } from './ipc/tuning';
+import { registerTestRunnerIPC } from './ipc/testRunner';
+import { registerReportIPC } from './ipc/report';
 
 // Configure logging
 log.transports.file.level = 'info';
@@ -65,6 +67,8 @@ app.whenReady().then(() => {
   registerLLMIPC();
   registerSQLIPC();
   registerTuningIPC();
+  registerTestRunnerIPC();
+  registerReportIPC();
 
   // Initialize database
   try {

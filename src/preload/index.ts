@@ -75,6 +75,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('tuning:saveRecord', record),
   tuningGetRecords: (): Promise<{ success: boolean; data?: any[]; error?: string }> =>
     ipcRenderer.invoke('tuning:getRecords'),
+  // TestRunner methods
+  testRunnerParseRequirements: (requirement: string): Promise<{ success: boolean; testCase?: any; error?: string }> =>
+    ipcRenderer.invoke('testRunner:parseRequirements', { requirement }),
+  testRunnerExecute: (testCase: any, reportId: number): Promise<{ success: boolean; executedCase?: any; error?: string }> =>
+    ipcRenderer.invoke('testRunner:execute', { testCase, reportId }),
+  testRunnerGetTestCases: (reportId: number): Promise<{ success: boolean; data?: any[]; error?: string }> =>
+    ipcRenderer.invoke('testRunner:getTestCases', reportId),
+  testRunnerCreateTestCase: (reportId: number, testCase: any): Promise<{ success: boolean; executedCase?: any; error?: string }> =>
+    ipcRenderer.invoke('testRunner:createTestCase', { reportId, testCase }),
+  testRunnerSuggestFix: (sql: string, error: string): Promise<{ success: boolean; suggestedFix?: string; error?: string }> =>
+    ipcRenderer.invoke('testRunner:suggestFix', sql, error),
+  // Report methods
+  reportGetAll: (): Promise<{ success: boolean; data?: any[]; error?: string }> =>
+    ipcRenderer.invoke('report:getAll'),
+  reportCreate: (name: string, description: string): Promise<{ success: boolean; data?: any; error?: string }> =>
+    ipcRenderer.invoke('report:create', name, description),
+  reportDelete: (id: number): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('report:delete', id),
 });
 
 console.log('Preload script loaded');
