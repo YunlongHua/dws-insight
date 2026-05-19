@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import log from 'electron-log';
 import { initDatabase, closeDatabase } from './storage/database';
+import { registerClusterIPC } from './ipc/cluster';
 
 // Configure logging
 log.transports.file.level = 'info';
@@ -55,6 +56,9 @@ ipcMain.handle('get-app-path', () => {
 // App lifecycle
 app.whenReady().then(() => {
   log.info('App is ready');
+
+  // Register IPC handlers
+  registerClusterIPC();
 
   // Initialize database
   try {

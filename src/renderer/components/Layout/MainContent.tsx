@@ -1,5 +1,6 @@
 import React from 'react';
 import { ViewType } from './Sidebar';
+import ClusterPanel from '../Cluster/ClusterPanel';
 
 interface MainContentProps {
   activeView: ViewType;
@@ -9,12 +10,7 @@ function MainContent({ activeView }: MainContentProps): React.ReactElement {
   const renderContent = () => {
     switch (activeView) {
       case 'clusters':
-        return (
-          <div className="card">
-            <h2>集群管理</h2>
-            <p>管理集群配置和连接信息</p>
-          </div>
-        );
+        return <ClusterPanel />;
       case 'llm':
         return (
           <div className="card">

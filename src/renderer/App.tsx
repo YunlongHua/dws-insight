@@ -6,14 +6,20 @@ import MainContent from './components/Layout/MainContent';
 import { Cluster } from './contexts/AppContext';
 import './styles/global.css';
 
+interface ElectronAPI {
+  getAppVersion: () => Promise<string>;
+  getAppPath: () => Promise<string>;
+  getClusters: () => Promise<Cluster[]>;
+  addCluster: (cluster: Omit<Cluster, 'id'>) => Promise<Cluster>;
+  updateCluster: (id: string, cluster: Partial<Cluster>) => Promise<Cluster>;
+  deleteCluster: (id: string) => Promise<boolean>;
+  testCluster: (cluster: Cluster) => Promise<{ success: boolean; message: string }>;
+  platform: string;
+}
+
 declare global {
   interface Window {
-    electronAPI: {
-      getAppVersion: () => Promise<string>;
-      getAppPath: () => Promise<string>;
-      getClusters: () => Promise<Cluster[]>;
-      platform: string;
-    };
+    electronAPI: ElectronAPI;
   }
 }
 
