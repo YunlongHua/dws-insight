@@ -1,174 +1,160 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
+import { Card, Form, Select, Input, Button, message, Divider, Tag } from 'antd'
 
 interface LLMConfig {
-  provider: 'openai' | 'eimaas' | 'custom';
-  apiKey?: string;
-  baseUrl?: string;
-  model?: string;
+  provider: 'openai' | 'eimaas' | 'custom'
+  apiKey?: string
+  baseUrl?: string
+  model?: string
 }
 
-interface LLMPanelProps {
-  onConfigSaved?: () => void;
+const providerOptions = [
+  { value: 'openai', label: 'OpenAI 兼容 API' },
+  { value: 'eimaas', label: '华为云 EI-MaaS' },
+  { value: 'custom', label: '自建模型' },
+]
+
+const modelOptions = {
+  openai: [
+    { value: 'gpt-4', label: 'GPT-4' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+  ],
+  eimaas: [
+    { value: 'default', label: '默认模型' },
+  ],
+  custom: [
+    { value: 'default', label: '默认模型' },
+  ],
 }
 
-function LLMPanel({ onConfigSaved }: LLMPanelProps): React.ReactElement {
-  const [provider, setProvider] = useState<'openai' | 'eimaas' | 'custom'>('openai');
-  const [apiKey, setApiKey] = useState('');
-  const [baseUrl, setBaseUrl] = useState('');
-  const [model, setModel] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+export default function LLMPanel() {
+  const [form] = Form.useForm()
+  const [loading, setLoading] = useState(false)
+  const [provider, setProvider] = useState<'openai' | 'eimaas' | 'custom'>('openai')
 
   useEffect(() => {
-    loadConfig();
-  }, []);
+    loadConfig()
+  }, [])
 
   const loadConfig = async () => {
     try {
-      const response = await window.electronAPI.llmGetConfig();
+      const response = await window.electronAPI.llmGetConfig()
       if (response.success && response.data) {
-        const config = response.data as LLMConfig;
-        setProvider(config.provider || 'openai');
-        setApiKey(config.apiKey || '');
-        setBaseUrl(config.baseUrl || '');
-        setModel(config.model || '');
+        const config = response.data as LLMConfig
+        form.setFieldsValue(config)
+        setProvider(config.provider || 'openai')
       }
-    } catch (err) {
-      console.error('Error loading config:', err);
+    } catch (error) {
+      console.error('Failed to load config:', error)
     }
-  };
+  }
 
-  const handleSave = async () => {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
+  const handleSave = async (values: LLMConfig) => {
+    setLoading(true)
     try {
-      const config = {
-        provider,
-        apiKey,
-        baseUrl,
-        model,
-      };
-
-      const response = await window.electronAPI.llmSetConfig(config);
-
+      const response = await window.electronAPI.llmSetConfig(values)
       if (response.success) {
-        setSuccess('Configuration saved successfully');
-        onConfigSaved?.();
+        message.success('配置保存成功')
       } else {
-        setError(response.error || 'Failed to save configuration');
+        message.error(response.error || '保存失败')
       }
-    } catch (err) {
-      setError(String(err));
+    } catch (error: any) {
+      message.error(error.message || '保存失败')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const getProviderPlaceholder = () => {
-    switch (provider) {
-      case 'openai':
-        return 'https://api.openai.com/v1';
-      case 'eimaas':
-        return 'https://ei-maas.example.com';
-      case 'custom':
-        return 'https://your-custom-api.com';
-      default:
-        return '';
-    }
-  };
-
-  const getDefaultModel = () => {
-    switch (provider) {
-      case 'openai':
-        return 'gpt-4';
-      case 'eimaas':
-        return '';
-      case 'custom':
-        return '';
-      default:
-        return '';
-    }
-  };
+  const handleProviderChange = (value: 'openai' | 'eimaas' | 'custom') => {
+    setProvider(value)
+    form.setFieldValue('model', '')
+  }
 
   return (
-    <div className="llm-panel">
-      <h2>LLM Configuration</h2>
-      <p className="subtitle">Configure your LLM provider settings</p>
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#1e293b' }}>大模型配置</h2>
+        <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>配置 LLM 提供者以启用 AI 功能</p>
+      </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
-
-      <div className="form-group">
-        <label htmlFor="provider">Provider</label>
-        <select
-          id="provider"
-          value={provider}
-          onChange={(e) => {
-            setProvider(e.target.value as 'openai' | 'eimaas' | 'custom');
-            if (e.target.value === 'openai' && !model) {
-              setModel('gpt-4');
-            }
-          }}
+      <Card style={{ borderRadius: 12, maxWidth: 600 }}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSave}
+          initialValues={{ provider: 'openai', model: 'gpt-4' }}
         >
-          <option value="openai">OpenAI</option>
-          <option value="eimaas">Huawei EI-MaaS</option>
-          <option value="custom">Custom API</option>
-        </select>
-      </div>
+          <Form.Item
+            name="provider"
+            label="模型提供者"
+            rules={[{ required: true, message: '请选择模型提供者' }]}
+          >
+            <Select
+              options={providerOptions}
+              onChange={handleProviderChange}
+              placeholder="选择 LLM 提供者"
+            />
+          </Form.Item>
 
-      <div className="form-group">
-        <label htmlFor="apiKey">API Key</label>
-        <input
-          type="password"
-          id="apiKey"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Enter your API key"
-        />
-      </div>
+          <Form.Item
+            name="apiKey"
+            label="API Key"
+            rules={[{ required: true, message: '请输入 API Key' }]}
+          >
+            <Input.Password placeholder="输入 API Key" />
+          </Form.Item>
 
-      <div className="form-group">
-        <label htmlFor="baseUrl">Base URL</label>
-        <input
-          type="text"
-          id="baseUrl"
-          value={baseUrl}
-          onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder={getProviderPlaceholder()}
-        />
-        {provider === 'openai' && (
-          <small className="hint">Leave empty to use OpenAI default</small>
-        )}
-      </div>
+          <Form.Item
+            name="baseUrl"
+            label="API 地址"
+            tooltip={provider === 'openai' ? '留空使用 OpenAI 默认地址' : '输入 API 服务器地址'}
+          >
+            <Input
+              placeholder={
+                provider === 'openai'
+                  ? 'https://api.openai.com/v1 (留空使用默认)'
+                  : '输入 API 服务器地址'
+              }
+            />
+          </Form.Item>
 
-      <div className="form-group">
-        <label htmlFor="model">Model</label>
-        <input
-          type="text"
-          id="model"
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          placeholder={getDefaultModel() || 'Enter model name'}
-        />
-        {provider === 'openai' && (
-          <small className="hint">Leave empty to use gpt-4</small>
-        )}
-      </div>
+          <Form.Item
+            name="model"
+            label="模型名称"
+            tooltip="输入模型名称，如 gpt-4"
+          >
+            <Select
+              placeholder="选择或输入模型"
+              allowClear
+              showSearch
+              options={provider === 'openai' ? modelOptions.openai : modelOptions.eimaas}
+              onChange={(value) => {
+                if (!value && provider === 'openai') {
+                  form.setFieldValue('model', 'gpt-4')
+                }
+              }}
+            />
+          </Form.Item>
 
-      <div className="form-actions">
-        <button
-          className="btn btn-primary"
-          onClick={handleSave}
-          disabled={loading}
-        >
-          {loading ? 'Saving...' : 'Save Configuration'}
-        </button>
-      </div>
+          <Divider />
+
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              保存配置
+            </Button>
+          </Form.Item>
+        </Form>
+
+        <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 8 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>提示</h4>
+          <ul style={{ fontSize: 12, color: '#64748b', margin: 0, paddingLeft: 20 }}>
+            <li>OpenAI: 使用 OpenAI 官方 API 或兼容的第三方服务</li>
+            <li>华为云 EI-MaaS: 使用华为云企业级大模型服务</li>
+            <li>自建模型: 连接您私有部署的模型服务</li>
+          </ul>
+        </div>
+      </Card>
     </div>
-  );
+  )
 }
-
-export default LLMPanel;
