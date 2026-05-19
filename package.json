@@ -2,12 +2,12 @@
   "name": "dws-ui",
   "version": "0.1.0",
   "description": "DWS Client - Data Warehouse Service Desktop Application",
-  "main": "dist/main/index.js",
+  "main": "dist/src/main/index.js",
   "author": "DWS Team",
   "license": "MIT",
   "scripts": {
     "dev:vite": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc -p tsconfig.node.json && vite build",
     "preview": "vite preview",
     "electron:dev": "electron .",
     "electron:build": "npm run build && electron-builder"
