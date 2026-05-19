@@ -1,6 +1,8 @@
 import React from 'react';
 import { ViewType } from './Sidebar';
 import ClusterPanel from '../Cluster/ClusterPanel';
+import LLMPanel from '../LLM/LLMPanel';
+import ChatPanel from '../LLM/ChatPanel';
 
 interface MainContentProps {
   activeView: ViewType;
@@ -13,9 +15,13 @@ function MainContent({ activeView }: MainContentProps): React.ReactElement {
         return <ClusterPanel />;
       case 'llm':
         return (
-          <div className="card">
-            <h2>大模型配置</h2>
-            <p>配置大语言模型参数和API</p>
+          <div className="llm-view">
+            <div className="llm-config-section">
+              <LLMPanel />
+            </div>
+            <div className="llm-chat-section">
+              <ChatPanel />
+            </div>
           </div>
         );
       case 'tuning':
