@@ -1,27 +1,12 @@
-import { useState } from 'react'
-import { Layout, ConfigProvider, theme, Menu } from 'antd'
-import {
-  CloudServerOutlined,
-  RobotOutlined,
-  ThunderboltOutlined,
-  FileTextOutlined,
-  HistoryOutlined,
-  SettingOutlined
-} from '@ant-design/icons'
-import ClusterPanel from './components/Cluster/ClusterPanel'
-import LLMPanel from './components/LLM/LLMPanel'
-import TuningPanel from './components/Tuning/TuningPanel'
-import ReportPanel from './components/Report/ReportPanel'
-import HistoryPanel from './components/History/HistoryPanel'
+import { useState, useEffect, useCallback } from 'react'
+import { Layout, ConfigProvider, theme, message } from 'antd'
+import { RobotOutlined } from '@ant-design/icons'
+import Header from './components/Header/Header'
+import { ChatContainer, InputArea } from './components/Chat'
+import type { Message } from './components/Chat'
 import './styles/global.css'
 
-type MenuItem = {
-  key: string
-  icon: React.ReactNode
-  label: string
-}
-
-const { Sider, Content } = Layout
+const { Content } = Layout
 
 const lightTheme = {
   algorithm: theme.defaultAlgorithm,
@@ -38,130 +23,178 @@ const lightTheme = {
     borderRadius: 6,
     fontFamily: "'Inter', 'Microsoft YaHei', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     fontSize: 13,
-    boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-  },
-  components: {
-    Button: {
-      borderRadius: 6,
-      controlHeight: 32,
-      paddingContentHorizontal: 12,
-    },
-    Select: {
-      borderRadius: 6,
-      controlHeight: 28,
-    },
-    Input: {
-      borderRadius: 6,
-    },
   },
 }
 
-const menuItems: MenuItem[] = [
-  { key: 'clusters', icon: <CloudServerOutlined />, label: '集群管理' },
-  { key: 'llm', icon: <RobotOutlined />, label: '大模型配置' },
-  { key: 'tuning', icon: <ThunderboltOutlined />, label: 'DWS 调优' },
-  { key: 'report', icon: <FileTextOutlined />, label: '测试报告' },
-  { key: 'history', icon: <HistoryOutlined />, label: '历史记录' },
-]
+interface Cluster {
+  id: string
+  name: string
+  host: string
+  port: number
+  database: string
+  username: string
+}
+
+const workflowPrompts = {
+  tuning: '请输入需要调优的 SQL 语句，我会分析并给出优化建议。',
+  report: '请描述您需要创建的测试报告需求，我会帮您生成测试用例并执行。',
+  chat: '有什么可以帮您的？',
+}
 
 export default function App() {
-  const [activeView, setActiveView] = useState('clusters')
+  const [currentWorkflow, setCurrentWorkflow] = useState('tuning')
+  const [currentCluster, setCurrentCluster] = useState<Cluster | undefined>()
+  const [messages, setMessages] = useState<Message[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const renderContent = () => {
-    switch (activeView) {
-      case 'clusters':
-        return <ClusterPanel />
-      case 'llm':
-        return <LLMPanel />
-      case 'tuning':
-        return <TuningPanel />
-      case 'report':
-        return <ReportPanel />
-      case 'history':
-        return <HistoryPanel />
-      default:
-        return <ClusterPanel />
+  useEffect(() => {
+    // Add welcome message
+    const welcomeMessage: Message = {
+      id: `welcome-${Date.now()}`,
+      type: 'assistant',
+      content: `欢迎使用 DWS Client！\n\n当前工作流: ${currentWorkflow === 'tuning' ? 'DWS 调优' : currentWorkflow === 'report' ? '测试报告' : '通用对话'}\n\n${workflowPrompts[currentWorkflow as keyof typeof workflowPrompts]}`,
+      timestamp: new Date(),
     }
+    setMessages([welcomeMessage])
+  }, [])
+
+  useEffect(() => {
+    // Update welcome message when workflow changes
+    if (messages.length === 1 && messages[0].id.startsWith('welcome')) {
+      setMessages([{
+        ...messages[0],
+        content: `欢迎使用 DWS Client！\n\n当前工作流: ${currentWorkflow === 'tuning' ? 'DWS 调优' : currentWorkflow === 'report' ? '测试报告' : '通用对话'}\n\n${workflowPrompts[currentWorkflow as keyof typeof workflowPrompts]}`,
+      }])
+    }
+  }, [currentWorkflow])
+
+  const handleSend = useCallback(async (input: string) => {
+    if (!input.trim()) return
+
+    // Add user message
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      type: 'user',
+      content: input,
+      timestamp: new Date(),
+    }
+    setMessages(prev => [...prev, userMessage])
+
+    // Add thinking message
+    const thinkingMessage: Message = {
+      id: `thinking-${Date.now()}`,
+      type: 'thinking',
+      content: '正在分析...',
+      timestamp: new Date(),
+    }
+    setMessages(prev => [...prev, thinkingMessage])
+    setLoading(true)
+
+    try {
+      if (currentWorkflow === 'tuning') {
+        await handleTuningWorkflow(input, thinkingMessage.id)
+      } else if (currentWorkflow === 'report') {
+        await handleReportWorkflow(input, thinkingMessage.id)
+      } else {
+        await handleChatWorkflow(input, thinkingMessage.id)
+      }
+    } catch (error: any) {
+      updateMessage(thinkingMessage.id, {
+        type: 'error',
+        content: `错误: ${error.message}`,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [currentWorkflow, currentCluster])
+
+  const handleTuningWorkflow = async (input: string, thinkingId: string) => {
+    // Send to LLM for analysis
+    const response = await window.electronAPI?.llmChat([
+      { role: 'system', content: '你是一个 SQL 调优专家。用户会输入 SQL 语句，你需要分析并给出优化建议。' },
+      { role: 'user', content: input }
+    ])
+
+    if (response.success) {
+      updateMessage(thinkingId, {
+        type: 'assistant',
+        content: response.content || '分析完成',
+      })
+    } else {
+      updateMessage(thinkingId, {
+        type: 'error',
+        content: response.error || '调优分析失败',
+      })
+    }
+  }
+
+  const handleReportWorkflow = async (input: string, thinkingId: string) => {
+    const response = await window.electronAPI?.llmChat([
+      { role: 'system', content: '你是一个测试工程师。用户会描述测试需求，你需要生成测试用例。' },
+      { role: 'user', content: input }
+    ])
+
+    if (response.success) {
+      updateMessage(thinkingId, {
+        type: 'assistant',
+        content: response.content || '测试用例已生成',
+      })
+    } else {
+      updateMessage(thinkingId, {
+        type: 'error',
+        content: response.error || '测试用例生成失败',
+      })
+    }
+  }
+
+  const handleChatWorkflow = async (input: string, thinkingId: string) => {
+    const response = await window.electronAPI?.llmChat([
+      { role: 'user', content: input }
+    ])
+
+    if (response.success) {
+      updateMessage(thinkingId, {
+        type: 'assistant',
+        content: response.content || '收到',
+      })
+    } else {
+      updateMessage(thinkingId, {
+        type: 'error',
+        content: response.error || '对话失败',
+      })
+    }
+  }
+
+  const updateMessage = (id: string, updates: Partial<Message>) => {
+    setMessages(prev => prev.map(msg =>
+      msg.id === id ? { ...msg, ...updates } : msg
+    ))
+  }
+
+  const handleStop = () => {
+    setLoading(false)
+    message.info('已停止')
   }
 
   return (
     <ConfigProvider theme={lightTheme}>
-      <Layout style={{ height: '100vh' }}>
-        <Sider
-          width={220}
-          style={{
-            background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
-            boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
-          }}
-        >
-          <div style={{
-            height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
-          }}>
-            <span style={{
-              color: '#fff',
-              fontSize: 18,
-              fontWeight: 600,
-              letterSpacing: '0.5px'
-            }}>
-              DWS Client
-            </span>
-          </div>
-          <Menu
-            mode="inline"
-            selectedKeys={[activeView]}
-            onClick={({ key }) => setActiveView(key)}
-            style={{
-              background: 'transparent',
-              borderRight: 'none',
-              marginTop: 8,
-            }}
-            items={menuItems.map(item => ({
-              key: item.key,
-              icon: item.icon,
-              label: item.label,
-              style: {
-                margin: '4px 12px',
-                borderRadius: 8,
-                height: 44,
-                lineHeight: '44px',
-              }
-            }))}
+      <Layout className="app-layout">
+        <Header
+          currentWorkflow={currentWorkflow}
+          onWorkflowChange={setCurrentWorkflow}
+          currentCluster={currentCluster}
+          onClusterChange={setCurrentCluster}
+        />
+
+        <Content className="app-main">
+          <ChatContainer messages={messages} />
+          <InputArea
+            onSend={handleSend}
+            onStop={handleStop}
+            loading={loading}
+            disabled={!currentCluster}
           />
-          <div style={{
-            position: 'absolute',
-            bottom: 16,
-            left: 16,
-            right: 16,
-            padding: '12px',
-            borderRadius: 8,
-            background: 'rgba(255,255,255,0.05)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            cursor: 'pointer',
-          }}>
-            <SettingOutlined style={{ color: '#94a3b8' }} />
-            <span style={{ color: '#94a3b8', fontSize: 13 }}>设置</span>
-          </div>
-        </Sider>
-        <Layout>
-          <Content style={{
-            padding: 24,
-            background: '#f8fafc',
-            overflow: 'auto',
-          }}>
-            <div style={{
-              maxWidth: 1400,
-              margin: '0 auto',
-            }}>
-              {renderContent()}
-            </div>
-          </Content>
-        </Layout>
+        </Content>
       </Layout>
     </ConfigProvider>
   )
