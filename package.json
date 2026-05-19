@@ -1,0 +1,36 @@
+{
+  "name": "dws-ui",
+  "version": "0.1.0",
+  "description": "DWS Client - Data Warehouse Service Desktop Application",
+  "main": "dist/main/index.js",
+  "author": "DWS Team",
+  "license": "MIT",
+  "scripts": {
+    "dev:vite": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "electron:dev": "electron .",
+    "electron:build": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.6.0",
+    "docx": "^8.5.0",
+    "electron-log": "^5.2.4",
+    "electron-store": "^10.0.0",
+    "pg": "^8.13.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  }
+}
