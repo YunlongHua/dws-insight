@@ -1,44 +1,67 @@
 import React, { useEffect, useState } from 'react';
+import { AppProvider } from './contexts/AppContext';
+import Sidebar, { ViewType } from './components/Layout/Sidebar';
+import TopBar from './components/Layout/TopBar';
+import MainContent from './components/Layout/MainContent';
+import { Cluster } from './contexts/AppContext';
+import './styles/global.css';
 
 declare global {
   interface Window {
     electronAPI: {
       getAppVersion: () => Promise<string>;
       getAppPath: () => Promise<string>;
+      getClusters: () => Promise<Cluster[]>;
       platform: string;
     };
   }
 }
 
-function App(): React.ReactElement {
-  const [appVersion, setAppVersion] = useState<string>('');
-  const [appPath, setAppPath] = useState<string>('');
+function AppLayout(): React.ReactElement {
+  const [activeView, setActiveView] = useState<ViewType>('clusters');
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [currentCluster, setCurrentCluster] = useState<Cluster | null>(null);
 
   useEffect(() => {
-    const loadAppInfo = async () => {
+    const loadClusters = async () => {
       try {
-        const version = await window.electronAPI.getAppVersion();
-        const path = await window.electronAPI.getAppPath();
-        setAppVersion(version);
-        setAppPath(path);
+        if (window.electronAPI?.getClusters) {
+          const clusterList = await window.electronAPI.getClusters();
+          setClusters(clusterList);
+          if (clusterList.length > 0) {
+            setCurrentCluster(clusterList[0]);
+          }
+        }
       } catch (error) {
-        console.error('Failed to load app info:', error);
+        console.error('Failed to load clusters:', error);
       }
     };
 
-    loadAppInfo();
+    loadClusters();
   }, []);
 
+  const handleClusterChange = (cluster: Cluster) => {
+    setCurrentCluster(cluster);
+  };
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>DWS Client</h1>
-      <p>Welcome to the Data Warehouse Service Client</p>
-      <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-        <p><strong>Version:</strong> {appVersion || 'Loading...'}</p>
-        <p><strong>Platform:</strong> {window.electronAPI.platform}</p>
-        <p><strong>App Path:</strong> {appPath || 'Loading...'}</p>
-      </div>
+    <div className="app-container">
+      <Sidebar activeView={activeView} onNavigate={setActiveView} />
+      <TopBar
+        clusters={clusters}
+        currentCluster={currentCluster}
+        onClusterChange={handleClusterChange}
+      />
+      <MainContent activeView={activeView} />
     </div>
+  );
+}
+
+function App(): React.ReactElement {
+  return (
+    <AppProvider>
+      <AppLayout />
+    </AppProvider>
   );
 }
 
