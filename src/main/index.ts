@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import log from 'electron-log';
-import { initDatabase } from './storage/database';
+import { initDatabase, closeDatabase } from './storage/database';
 
 // Configure logging
 log.transports.file.level = 'info';
@@ -82,6 +82,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   log.info('Application quitting...');
+  closeDatabase();
 });
 
 // Handle uncaught exceptions

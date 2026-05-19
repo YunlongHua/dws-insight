@@ -172,15 +172,17 @@ export function getReportById(id: number): Report | undefined {
 
 export function updateReport(id: number, updates: Partial<Report>): Report | null {
   const database = getDatabase();
-  const existing = getReportById(id);
-  if (!existing) return null;
+  const transaction = database.transaction(() => {
+    const existing = database.prepare('SELECT * FROM reports WHERE id = ?').get(id) as Report | undefined;
+    if (!existing) return null;
 
-  const updated = { ...existing, ...updates, updated_at: new Date().toISOString() };
-  const stmt = database.prepare(
-    'UPDATE reports SET name = ?, description = ?, updated_at = ? WHERE id = ?'
-  );
-  stmt.run(updated.name, updated.description, updated.updated_at, id);
-  return updated;
+    const updated = { ...existing, ...updates, updated_at: new Date().toISOString() };
+    database.prepare(
+      'UPDATE reports SET name = ?, description = ?, updated_at = ? WHERE id = ?'
+    ).run(updated.name, updated.description, updated.updated_at, id);
+    return updated;
+  });
+  return transaction();
 }
 
 export function deleteReport(id: number): boolean {
@@ -218,26 +220,28 @@ export function getTestCases(reportId: number): TestCase[] {
 
 export function updateTestCase(id: number, updates: Partial<TestCase>): TestCase | null {
   const database = getDatabase();
-  const existing = database.prepare('SELECT * FROM test_cases WHERE id = ?').get(id) as TestCase | undefined;
-  if (!existing) return null;
+  const transaction = database.transaction(() => {
+    const existing = database.prepare('SELECT * FROM test_cases WHERE id = ?').get(id) as TestCase | undefined;
+    if (!existing) return null;
 
-  const updated = { ...existing, ...updates, updated_at: new Date().toISOString() };
-  const stmt = database.prepare(
-    `UPDATE test_cases SET name = ?, preconditions = ?, steps = ?, expected_results = ?,
-     actual_results = ?, status = ?, notes = ?, updated_at = ? WHERE id = ?`
-  );
-  stmt.run(
-    updated.name,
-    updated.preconditions,
-    updated.steps,
-    updated.expected_results,
-    updated.actual_results,
-    updated.status,
-    updated.notes,
-    updated.updated_at,
-    id
-  );
-  return updated;
+    const updated = { ...existing, ...updates, updated_at: new Date().toISOString() };
+    database.prepare(
+      `UPDATE test_cases SET name = ?, preconditions = ?, steps = ?, expected_results = ?,
+       actual_results = ?, status = ?, notes = ?, updated_at = ? WHERE id = ?`
+    ).run(
+      updated.name,
+      updated.preconditions,
+      updated.steps,
+      updated.expected_results,
+      updated.actual_results,
+      updated.status,
+      updated.notes,
+      updated.updated_at,
+      id
+    );
+    return updated;
+  });
+  return transaction();
 }
 
 export function deleteTestCase(id: number): boolean {
@@ -275,22 +279,24 @@ export function getTuningRecords(): TuningRecord[] {
 
 export function updateTuningRecord(id: number, updates: Partial<TuningRecord>): TuningRecord | null {
   const database = getDatabase();
-  const existing = database.prepare('SELECT * FROM tuning_records WHERE id = ?').get(id) as TuningRecord | undefined;
-  if (!existing) return null;
+  const transaction = database.transaction(() => {
+    const existing = database.prepare('SELECT * FROM tuning_records WHERE id = ?').get(id) as TuningRecord | undefined;
+    if (!existing) return null;
 
-  const updated = { ...existing, ...updates };
-  const stmt = database.prepare(
-    `UPDATE tuning_records SET optimized_sql = ?, optimized_plan = ?,
-     optimized_result = ?, status = ? WHERE id = ?`
-  );
-  stmt.run(
-    updated.optimized_sql,
-    updated.optimized_plan,
-    updated.optimized_result,
-    updated.status,
-    id
-  );
-  return updated;
+    const updated = { ...existing, ...updates };
+    database.prepare(
+      `UPDATE tuning_records SET optimized_sql = ?, optimized_plan = ?,
+       optimized_result = ?, status = ? WHERE id = ?`
+    ).run(
+      updated.optimized_sql,
+      updated.optimized_plan,
+      updated.optimized_result,
+      updated.status,
+      id
+    );
+    return updated;
+  });
+  return transaction();
 }
 
 export function deleteTuningRecord(id: number): boolean {
@@ -300,4 +306,10 @@ export function deleteTuningRecord(id: number): boolean {
   return result.changes > 0;
 }
 
-export default db;
+export function closeDatabase(): void {
+  if (db) {
+    db.close();
+    db = null;
+    log.info('Database closed');
+  }
+}

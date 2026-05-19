@@ -1,5 +1,14 @@
 import Store from 'electron-store';
 import log from 'electron-log';
+import * as crypto from 'crypto';
+
+// Derive a machine-specific encryption key using hostname
+function getDerivedEncryptionKey(): string {
+  const hostname = require('os').hostname();
+  const appName = 'dws-ui';
+  const salt = `${appName}-${hostname}`;
+  return crypto.createHash('sha256').update(salt).digest('hex').substring(0, 32);
+}
 
 export interface ClusterConfig {
   id: string;
@@ -31,7 +40,7 @@ interface StoreSchema {
 
 const store = new Store<StoreSchema>({
   name: 'dws-config',
-  encryptionKey: 'dws-ui-encryption-key-v1',
+  encryptionKey: getDerivedEncryptionKey(),
   defaults: {
     clusters: {},
     currentClusterId: null,
