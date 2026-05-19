@@ -3,7 +3,9 @@
     "allow": [
       "Bash(scripts/start-server.sh *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(npm run *)",
+      "Bash(npm install *)"
     ]
   }
 }

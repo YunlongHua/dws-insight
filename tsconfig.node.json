@@ -6,9 +6,10 @@
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "strict": true,
     "composite": true,
-    "noEmit": false,
+    "noEmit": true,
     "outDir": "./dist",
     "types": ["node"]
   },
