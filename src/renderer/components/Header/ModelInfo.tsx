@@ -3,7 +3,7 @@ import { Tag, Tooltip } from 'antd'
 import { RobotOutlined } from '@ant-design/icons'
 
 interface LLMConfig {
-  provider: 'openai' | 'eimaas' | 'custom'
+  provider: 'openai' | 'custom'
   baseUrl?: string
   model?: string
 }
@@ -28,7 +28,6 @@ export default function ModelInfo() {
 
   const providerLabels = {
     openai: 'OpenAI',
-    eimaas: 'EI-MaaS',
     custom: '自定义'
   }
 

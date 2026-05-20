@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Layout, ConfigProvider, theme, message } from 'antd'
-import { RobotOutlined } from '@ant-design/icons'
 import Header from './components/Header/Header'
 import { ChatContainer, InputArea } from './components/Chat'
 import type { Message } from './components/Chat'
@@ -11,16 +10,16 @@ const { Content } = Layout
 const lightTheme = {
   algorithm: theme.defaultAlgorithm,
   token: {
-    colorPrimary: '#3b82f6',
-    colorSuccess: '#22c55e',
-    colorWarning: '#f59e0b',
-    colorError: '#ef4444',
+    colorPrimary: '#4f8cff',
+    colorSuccess: '#52c41a',
+    colorWarning: '#faad14',
+    colorError: '#ff4d4f',
     colorBgContainer: '#ffffff',
-    colorBgLayout: '#f8fafc',
-    colorBorder: '#e2e8f0',
-    colorText: '#1e293b',
-    colorTextSecondary: '#64748b',
-    borderRadius: 6,
+    colorBgLayout: '#f0f2f5',
+    colorBorder: '#e8e8e8',
+    colorText: '#1a1a1a',
+    colorTextSecondary: '#666666',
+    borderRadius: 10,
     fontFamily: "'Inter', 'Microsoft YaHei', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     fontSize: 13,
   },
@@ -35,35 +34,41 @@ interface Cluster {
   username: string
 }
 
+interface LLMConfig {
+  id?: string
+  name?: string
+  provider: 'openai' | 'custom'
+  apiKey?: string
+  baseUrl?: string
+  model?: string
+}
+
 const workflowPrompts = {
   tuning: '请输入需要调优的 SQL 语句，我会分析并给出优化建议。',
   report: '请描述您需要创建的测试报告需求，我会帮您生成测试用例并执行。',
-  chat: '有什么可以帮您的？',
 }
 
 export default function App() {
   const [currentWorkflow, setCurrentWorkflow] = useState('tuning')
   const [currentCluster, setCurrentCluster] = useState<Cluster | undefined>()
+  const [modelConfig, setModelConfig] = useState<LLMConfig | undefined>()
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Add welcome message
     const welcomeMessage: Message = {
       id: `welcome-${Date.now()}`,
       type: 'assistant',
-      content: `欢迎使用 DWS Client！\n\n当前工作流: ${currentWorkflow === 'tuning' ? 'DWS 调优' : currentWorkflow === 'report' ? '测试报告' : '通用对话'}\n\n${workflowPrompts[currentWorkflow as keyof typeof workflowPrompts]}`,
+      content: `欢迎使用 DWS Insight！\n\n${workflowPrompts[currentWorkflow as keyof typeof workflowPrompts]}`,
       timestamp: new Date(),
     }
     setMessages([welcomeMessage])
   }, [])
-
   useEffect(() => {
-    // Update welcome message when workflow changes
     if (messages.length === 1 && messages[0].id.startsWith('welcome')) {
       setMessages([{
         ...messages[0],
-        content: `欢迎使用 DWS Client！\n\n当前工作流: ${currentWorkflow === 'tuning' ? 'DWS 调优' : currentWorkflow === 'report' ? '测试报告' : '通用对话'}\n\n${workflowPrompts[currentWorkflow as keyof typeof workflowPrompts]}`,
+        content: `欢迎使用 DWS Insight！\n\n${workflowPrompts[currentWorkflow as keyof typeof workflowPrompts]}`,
       }])
     }
   }, [currentWorkflow])
@@ -71,7 +76,6 @@ export default function App() {
   const handleSend = useCallback(async (input: string) => {
     if (!input.trim()) return
 
-    // Add user message
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       type: 'user',
@@ -80,7 +84,6 @@ export default function App() {
     }
     setMessages(prev => [...prev, userMessage])
 
-    // Add thinking message
     const thinkingMessage: Message = {
       id: `thinking-${Date.now()}`,
       type: 'thinking',
@@ -109,16 +112,18 @@ export default function App() {
   }, [currentWorkflow, currentCluster])
 
   const handleTuningWorkflow = async (input: string, thinkingId: string) => {
-    // Send to LLM for analysis
-    const response = await window.electronAPI?.llmChat([
-      { role: 'system', content: '你是一个 SQL 调优专家。用户会输入 SQL 语句，你需要分析并给出优化建议。' },
-      { role: 'user', content: input }
-    ])
+    const response = await window.electronAPI?.llmChat({
+      messages: [
+        { role: 'system', content: '你是一个 SQL 调优专家。用户会输入 SQL 语句，你需要分析并给出优化建议。' },
+        { role: 'user', content: input }
+      ]
+    })
 
     if (response.success) {
       updateMessage(thinkingId, {
         type: 'assistant',
         content: response.content || '分析完成',
+        think: response.think,
       })
     } else {
       updateMessage(thinkingId, {
@@ -129,33 +134,97 @@ export default function App() {
   }
 
   const handleReportWorkflow = async (input: string, thinkingId: string) => {
-    const response = await window.electronAPI?.llmChat([
-      { role: 'system', content: '你是一个测试工程师。用户会描述测试需求，你需要生成测试用例。' },
-      { role: 'user', content: input }
-    ])
+    updateMessage(thinkingId, {
+      type: 'thinking',
+      content: '正在创建测试报告...',
+    })
 
-    if (response.success) {
-      updateMessage(thinkingId, {
-        type: 'assistant',
-        content: response.content || '测试用例已生成',
-      })
-    } else {
+    const reportResponse = await window.electronAPI?.reportCreate('测试报告 ' + new Date().toLocaleString(), input)
+    if (!reportResponse?.success || !reportResponse.data) {
       updateMessage(thinkingId, {
         type: 'error',
-        content: response.error || '测试用例生成失败',
+        content: reportResponse?.error || '创建报告失败',
       })
+      return
     }
+    const reportId = reportResponse.data.id as number
+
+    updateMessage(thinkingId, {
+      type: 'thinking',
+      content: '正在解析测试需求，生成测试用例...',
+    })
+
+    const parseResponse = await window.electronAPI?.testRunnerParseRequirements(input)
+    if (!parseResponse?.success || !parseResponse.testCase) {
+      updateMessage(thinkingId, {
+        type: 'error',
+        content: parseResponse?.error || '解析需求失败',
+      })
+      return
+    }
+
+    const testCase = parseResponse.testCase
+
+    updateMessage(thinkingId, {
+      type: 'thinking',
+      content: `正在执行测试用例: ${testCase.name}...`,
+    })
+
+    const executeResponse = await window.electronAPI?.testRunnerExecute(testCase, reportId)
+    if (!executeResponse?.success) {
+      updateMessage(thinkingId, {
+        type: 'error',
+        content: executeResponse?.error || '执行测试用例失败',
+      })
+      return
+    }
+
+    const executedCase = executeResponse.executedCase
+
+    let resultContent = `# 测试报告\n\n`
+    resultContent += `## ${executedCase.name}\n\n`
+    resultContent += `**前置条件:** ${executedCase.preconditions}\n\n`
+    resultContent += `**预期结果:** ${executedCase.expected_results}\n\n`
+    resultContent += `## 测试步骤\n\n`
+
+    for (const step of executedCase.steps) {
+      const statusIcon = step.status === 'passed' ? '✅' : step.status === 'failed' ? '❌' : '⏳'
+      resultContent += `### ${statusIcon} ${step.step}\n\n`
+      if (step.sql) {
+        resultContent += `**SQL:** \`\`\`sql\n${step.sql}\n\`\`\`\n\n`
+      }
+      if (step.expected) {
+        resultContent += `**预期:** ${step.expected}\n\n`
+      }
+      if (step.actual) {
+        resultContent += `**实际结果:**\n\`\`\`\n${step.actual}\n\`\`\`\n\n`
+      }
+      if (step.error) {
+        resultContent += `**错误:** ${step.error}\n\n`
+      }
+    }
+
+    resultContent += `---\n\n`
+    resultContent += `**总体状态:** ${executedCase.status === 'passed' ? '✅ 通过' : '❌ 失败'}\n`
+
+    updateMessage(thinkingId, {
+      type: 'result',
+      content: resultContent,
+    })
   }
 
   const handleChatWorkflow = async (input: string, thinkingId: string) => {
-    const response = await window.electronAPI?.llmChat([
-      { role: 'user', content: input }
-    ])
+    const response = await window.electronAPI?.llmChat({
+      messages: [
+        { role: 'user', content: input }
+      ]
+    })
 
     if (response.success) {
       updateMessage(thinkingId, {
         type: 'assistant',
         content: response.content || '收到',
+        think: response.think,
       })
     } else {
       updateMessage(thinkingId, {
@@ -178,22 +247,45 @@ export default function App() {
 
   return (
     <ConfigProvider theme={lightTheme}>
-      <Layout className="app-layout">
-        <Header
-          currentWorkflow={currentWorkflow}
-          onWorkflowChange={setCurrentWorkflow}
-          currentCluster={currentCluster}
-          onClusterChange={setCurrentCluster}
-        />
-
-        <Content className="app-main">
-          <ChatContainer messages={messages} />
-          <InputArea
-            onSend={handleSend}
-            onStop={handleStop}
-            loading={loading}
-            disabled={!currentCluster}
+      <Layout style={{ minHeight: '100vh', background: '#f0f2f5', display: 'flex', flexDirection: 'column' }}>
+        <Content style={{
+          padding: '16px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+          boxSizing: 'border-box'
+        }}>
+          {/* Header bar - rounded gray container */}
+          <Header
+            currentWorkflow={currentWorkflow}
+            onWorkflowChange={setCurrentWorkflow}
+            currentCluster={currentCluster}
+            onClusterChange={setCurrentCluster}
+            modelConfig={modelConfig}
+            onModelChange={setModelConfig}
           />
+
+          {/* Chat area - rounded white container */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#fff',
+            borderRadius: 12,
+            overflow: 'hidden',
+            flex: 1,
+            minHeight: 200,
+            padding: '12px 16px',
+          }}>
+            <ChatContainer messages={messages} />
+            <InputArea
+              onSend={handleSend}
+              onStop={handleStop}
+              loading={loading}
+            />
+          </div>
         </Content>
       </Layout>
     </ConfigProvider>

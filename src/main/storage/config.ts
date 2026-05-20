@@ -29,8 +29,10 @@ export interface ClusterConfig {
 }
 
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'azure' | 'eimaas' | 'custom';
-  apiKey: string;
+  id: string;
+  name: string;
+  provider: 'openai' | 'custom';
+  apiKey?: string;
   model?: string;
   endpoint?: string;
   baseUrl?: string;
@@ -41,7 +43,8 @@ export interface LLMConfig {
 interface StoreSchema {
   clusters: Record<string, ClusterConfig>;
   currentClusterId: string | null;
-  llmConfig: LLMConfig | null;
+  llmConfigs: Record<string, LLMConfig>;
+  currentLLMConfigId: string | null;
 }
 
 const store = new Store<StoreSchema>({
@@ -50,7 +53,8 @@ const store = new Store<StoreSchema>({
   defaults: {
     clusters: {},
     currentClusterId: null,
-    llmConfig: null,
+    llmConfigs: {},
+    currentLLMConfigId: null,
   },
 });
 
@@ -132,20 +136,79 @@ export function getCurrentCluster(): ClusterConfig | null {
 }
 
 // LLM config operations
-export function getLLMConfig(): LLMConfig | null {
-  return store.get('llmConfig', null);
+export function getLLMConfigs(): LLMConfig[] {
+  const configs = store.get('llmConfigs', {});
+  return Object.values(configs);
 }
 
-export function setLLMConfig(config: Omit<LLMConfig, 'createdAt' | 'updatedAt'>): LLMConfig {
+export function getLLMConfigById(id: string): LLMConfig | undefined {
+  const configs = store.get('llmConfigs', {});
+  return configs[id];
+}
+
+export function getCurrentLLMConfigId(): string | null {
+  return store.get('currentLLMConfigId', null);
+}
+
+export function setCurrentLLMConfigId(id: string | null): void {
+  store.set('currentLLMConfigId', id);
+  log.info(`Current LLM config ID set: ${id}`);
+}
+
+export function getCurrentLLMConfig(): LLMConfig | null {
+  const id = getCurrentLLMConfigId();
+  if (!id) return null;
+  return getLLMConfigById(id) || null;
+}
+
+export function addLLMConfig(config: Omit<LLMConfig, 'id' | 'createdAt' | 'updatedAt'>): LLMConfig {
+  const configs = store.get('llmConfigs', {});
   const now = new Date().toISOString();
+  const id = `llm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const newConfig: LLMConfig = {
     ...config,
+    id,
     createdAt: now,
     updatedAt: now,
   };
-  store.set('llmConfig', newConfig);
-  log.info(`LLM config updated for provider: ${config.provider}`);
+  configs[id] = newConfig;
+  store.set('llmConfigs', configs);
+  log.info(`LLM config added: ${id}`);
   return newConfig;
+}
+
+export function updateLLMConfig(id: string, updates: Partial<LLMConfig>): LLMConfig | null {
+  const configs = store.get('llmConfigs', {});
+  if (!configs[id]) {
+    return null;
+  }
+  const updated: LLMConfig = {
+    ...configs[id],
+    ...updates,
+    id, // Ensure ID cannot be changed
+    updatedAt: new Date().toISOString(),
+  };
+  configs[id] = updated;
+  store.set('llmConfigs', configs);
+  log.info(`LLM config updated: ${id}`);
+  return updated;
+}
+
+export function deleteLLMConfig(id: string): boolean {
+  const configs = store.get('llmConfigs', {});
+  if (!configs[id]) {
+    return false;
+  }
+  delete configs[id];
+  store.set('llmConfigs', configs);
+  log.info(`LLM config deleted: ${id}`);
+
+  // Clear current config ID if it was deleted
+  if (store.get('currentLLMConfigId') === id) {
+    store.set('currentLLMConfigId', null);
+  }
+
+  return true;
 }
 
 export default store;

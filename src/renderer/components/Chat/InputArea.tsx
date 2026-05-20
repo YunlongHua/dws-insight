@@ -30,39 +30,49 @@ export default function InputArea({ onSend, onStop, disabled, loading }: Props) 
 
   return (
     <div style={{
-      padding: '16px 24px',
+      padding: '12px 16px 0',
       background: '#fff',
-      borderTop: '1px solid #e2e8f0',
-      display: 'flex',
-      gap: 12,
-      alignItems: 'flex-end',
+      borderTop: '1px solid #f0f0f0',
     }}>
-      <TextArea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="输入指令或 SQL... (Shift+Enter 换行)"
-        disabled={disabled || loading}
-        autoSize={{ minRows: 1, maxRows: 4 }}
-        style={{
-          flex: 1,
-          borderRadius: 12,
-          resize: 'none',
-        }}
-      />
-      <Button
-        type="primary"
-        icon={loading ? <StopOutlined /> : <SendOutlined />}
-        onClick={loading ? onStop : handleSend}
-        disabled={!loading && !value.trim()}
-        loading={loading}
-        style={{
-          height: 40,
-          width: 40,
-          padding: 0,
-          borderRadius: 10,
-        }}
-      />
+      <div style={{
+        display: 'flex',
+        gap: 12,
+        alignItems: 'flex-end',
+      }}>
+        <TextArea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="输入指令或 SQL... (Shift+Enter 换行)"
+          disabled={disabled}
+          autoSize={{ minRows: 1, maxRows: 4 }}
+          style={{
+            flex: 1,
+            borderRadius: 10,
+            resize: 'none',
+            fontSize: 14,
+            padding: '10px 14px',
+            border: '1px solid #e8e8e8',
+          }}
+        />
+        <Button
+          type="primary"
+          icon={loading ? <StopOutlined /> : <SendOutlined />}
+          onClick={loading ? onStop : handleSend}
+          disabled={!loading && !value.trim()}
+          loading={loading}
+          style={{
+            height: 42,
+            width: 42,
+            padding: 0,
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        />
+      </div>
     </div>
   )
 }

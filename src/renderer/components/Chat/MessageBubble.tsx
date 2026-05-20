@@ -1,4 +1,5 @@
-import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons'
+import { useState } from 'react'
+import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import { Badge } from 'antd'
 import type { ReactNode } from 'react'
 
@@ -7,7 +8,20 @@ export type MessageType = 'user' | 'assistant' | 'system' | 'result' | 'error' |
 interface Props {
   type: MessageType
   content: string | ReactNode
+  think?: string
   timestamp?: Date
+}
+
+// Parse think tags from content string
+function parseThinkFromContent(content: string): { think: string | null; rest: string } {
+  const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/)
+  if (thinkMatch) {
+    return {
+      think: thinkMatch[1].trim(),
+      rest: content.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+    }
+  }
+  return { think: null, rest: content }
 }
 
 const typeStyles: Record<MessageType, { bg: string; color: string; align: 'left' | 'right'; icon: ReactNode }> = {
@@ -49,9 +63,17 @@ const typeStyles: Record<MessageType, { bg: string; color: string; align: 'left'
   },
 }
 
-export default function MessageBubble({ type, content, timestamp }: Props) {
+export default function MessageBubble({ type, content, think: thinkProp, timestamp }: Props) {
   const style = typeStyles[type]
   const isUser = type === 'user'
+
+  // First check think prop, then parse from content string
+  const contentStr = typeof content === 'string' ? content : ''
+  const { think: parsedThink, rest: parsedRest } = contentStr ? parseThinkFromContent(contentStr) : { think: null, rest: content }
+  const think = thinkProp || parsedThink
+  const displayContent = thinkProp ? content : parsedRest
+
+  const [thinkCollapsed, setThinkCollapsed] = useState(true)
 
   return (
     <div style={{
@@ -92,18 +114,53 @@ export default function MessageBubble({ type, content, timestamp }: Props) {
           lineHeight: 1.6,
           boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
         }}>
-          {typeof content === 'string' ? (
+          {/* Think section - collapsible */}
+          {think && (
+            <div style={{ marginBottom: displayContent ? 8 : 0 }}>
+              <div
+                onClick={() => setThinkCollapsed(!thinkCollapsed)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  fontSize: 12,
+                  userSelect: 'none',
+                }}
+              >
+                {thinkCollapsed ? <UpOutlined /> : <DownOutlined />}
+                <span>思考过程</span>
+              </div>
+              {!thinkCollapsed && (
+                <pre style={{
+                  margin: '8px 0 0 0',
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: "'Inter', 'Microsoft YaHei', sans-serif",
+                  fontSize: 13,
+                  color: '#64748b',
+                  background: '#f1f5f9',
+                  padding: 8,
+                  borderRadius: 6,
+                }}>
+                  {think}
+                </pre>
+              )}
+            </div>
+          )}
+          {/* Main content */}
+          {displayContent && (typeof displayContent === 'string' ? (
             <pre style={{
               margin: 0,
               whiteSpace: 'pre-wrap',
               fontFamily: "'Inter', 'Microsoft YaHei', sans-serif",
               fontSize: 14,
             }}>
-              {content}
+              {displayContent}
             </pre>
           ) : (
-            content
-          )}
+            displayContent
+          ))}
           {timestamp && (
             <div style={{
               fontSize: 11,

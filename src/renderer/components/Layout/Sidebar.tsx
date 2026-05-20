@@ -25,7 +25,7 @@ function Sidebar({ activeView, onNavigate }: SidebarProps): React.ReactElement {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <span className="sidebar-title">DWS Client</span>
+        <span className="sidebar-title">DWS Insight</span>
       </div>
       <nav className="sidebar-nav">
         {navItems.map((item) => (

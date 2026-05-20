@@ -5,6 +5,7 @@ export interface Message {
   id: string
   type: MessageType
   content: string
+  think?: string
   timestamp: Date
 }
 
@@ -24,18 +25,14 @@ export default function ChatContainer({ messages }: Props) {
   return (
     <div
       ref={containerRef}
-      style={{
-        flex: 1,
-        overflow: 'auto',
-        padding: '24px',
-        background: '#f8fafc',
-      }}
+      className="chat-container"
     >
       {messages.map((message) => (
         <MessageBubble
           key={message.id}
           type={message.type}
           content={message.content}
+          think={message.think}
           timestamp={message.timestamp}
         />
       ))}

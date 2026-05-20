@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.dws.client",
-  "productName": "DWS Client",
+  "appId": "com.dws.insight",
+  "productName": "DWS Insight",
   "directories": {
     "output": "release",
     "buildResources": "build"

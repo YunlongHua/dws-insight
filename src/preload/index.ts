@@ -10,7 +10,9 @@ interface Cluster {
 }
 
 interface LLMConfig {
-  provider: 'openai' | 'eimaas' | 'custom';
+  id?: string;
+  name?: string;
+  provider: 'openai' | 'custom';
   apiKey?: string;
   baseUrl?: string;
   model?: string;
@@ -41,14 +43,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('cluster:test', cluster),
   platform: process.platform,
   // LLM methods
-  llmGetConfig: (): Promise<{ success: boolean; data?: LLMConfig; error?: string }> =>
-    ipcRenderer.invoke('llm:getConfig'),
-  llmSetConfig: (config: Omit<LLMConfig, 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; data?: LLMConfig; error?: string }> =>
-    ipcRenderer.invoke('llm:setConfig', config),
+  llmGetAll: (): Promise<{ success: boolean; data?: LLMConfig[]; error?: string }> =>
+    ipcRenderer.invoke('llm:getAll'),
+  llmGetCurrent: (): Promise<{ success: boolean; data?: LLMConfig; error?: string }> =>
+    ipcRenderer.invoke('llm:getCurrent'),
+  llmSetCurrent: (id: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('llm:setCurrent', id),
+  llmAdd: (config: Omit<LLMConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; data?: LLMConfig; error?: string }> =>
+    ipcRenderer.invoke('llm:add', config),
+  llmUpdate: (id: string, config: Partial<LLMConfig>): Promise<{ success: boolean; data?: LLMConfig; error?: string }> =>
+    ipcRenderer.invoke('llm:update', id, config),
+  llmDelete: (id: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('llm:delete', id),
   llmChat: (request: ChatRequest): Promise<{ success: boolean; content?: string; error?: string }> =>
     ipcRenderer.invoke('llm:chat', request),
-  llmGetMessages: (sessionId: string): Promise<{ success: boolean; data?: Message[]; error?: string }> =>
-    ipcRenderer.invoke('llm:getMessages', sessionId),
+  llmTestConnection: (config: LLMConfig): Promise<{ success: boolean; content?: string; error?: string }> =>
+    ipcRenderer.invoke('llm:testConnection', config),
   // SQL methods
   sqlConnect: (config: { host: string; port: number; database: string; user: string; password: string }): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('sql:connect', config),

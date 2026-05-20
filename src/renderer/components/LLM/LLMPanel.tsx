@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Form, Select, Input, Button, message, Divider, Tag } from 'antd'
 
 interface LLMConfig {
-  provider: 'openai' | 'eimaas' | 'custom'
+  provider: 'openai' | 'custom'
   apiKey?: string
   baseUrl?: string
   model?: string
@@ -10,8 +10,7 @@ interface LLMConfig {
 
 const providerOptions = [
   { value: 'openai', label: 'OpenAI 兼容 API' },
-  { value: 'eimaas', label: '华为云 EI-MaaS' },
-  { value: 'custom', label: '自建模型' },
+  { value: 'custom', label: '自定义模型' },
 ]
 
 const modelOptions = {
@@ -20,18 +19,15 @@ const modelOptions = {
     { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
     { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
   ],
-  eimaas: [
-    { value: 'default', label: '默认模型' },
-  ],
   custom: [
-    { value: 'default', label: '默认模型' },
+    { value: 'custom', label: '自定义模型' },
   ],
 }
 
 export default function LLMPanel() {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [provider, setProvider] = useState<'openai' | 'eimaas' | 'custom'>('openai')
+  const [provider, setProvider] = useState<'openai' | 'custom'>('openai')
 
   useEffect(() => {
     loadConfig()
@@ -66,7 +62,7 @@ export default function LLMPanel() {
     }
   }
 
-  const handleProviderChange = (value: 'openai' | 'eimaas' | 'custom') => {
+  const handleProviderChange = (value: 'openai' | 'custom') => {
     setProvider(value)
     form.setFieldValue('model', '')
   }
@@ -128,7 +124,7 @@ export default function LLMPanel() {
               placeholder="选择或输入模型"
               allowClear
               showSearch
-              options={provider === 'openai' ? modelOptions.openai : modelOptions.eimaas}
+              options={provider === 'openai' ? modelOptions.openai : modelOptions.custom}
               onChange={(value) => {
                 if (!value && provider === 'openai') {
                   form.setFieldValue('model', 'gpt-4')
@@ -150,8 +146,7 @@ export default function LLMPanel() {
           <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>提示</h4>
           <ul style={{ fontSize: 12, color: '#64748b', margin: 0, paddingLeft: 20 }}>
             <li>OpenAI: 使用 OpenAI 官方 API 或兼容的第三方服务</li>
-            <li>华为云 EI-MaaS: 使用华为云企业级大模型服务</li>
-            <li>自建模型: 连接您私有部署的模型服务</li>
+            <li>自定义模型: 连接您私有部署的模型服务</li>
           </ul>
         </div>
       </Card>
