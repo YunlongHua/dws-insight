@@ -1,4 +1,4 @@
-import { Client } from 'pg'
+import { Client, ssl } from 'pg'
 import log from 'electron-log'
 import { getClusterById, ClusterConfig } from '../storage/config'
 
@@ -16,22 +16,49 @@ let currentConnection: { clusterId: string; client: Client } | null = null
 
 export const clusterManager = {
   async testConnection(cluster: Cluster): Promise<{ success: boolean; message: string }> {
-    const client = new Client({
+    // Try with SSL first, then without
+    const sslOptions = { rejectUnauthorized: false }
+
+    // Try SSL connection first
+    const sslClient = new Client({
       host: cluster.host,
       port: cluster.port,
       database: cluster.database,
       user: cluster.username,
       password: cluster.password,
-      connectionTimeoutMillis: 10000
+      connectionTimeoutMillis: 15000,
+      ssl: sslOptions
     })
+
     try {
-      await client.connect()
-      const result = await client.query('SELECT version()')
-      await client.end()
+      await sslClient.connect()
+      const result = await sslClient.query('SELECT version()')
+      await sslClient.end()
+      log.info(`SSL connection successful to ${cluster.host}:${cluster.port}`)
       return { success: true, message: result.rows[0].version }
     } catch (err: any) {
-      log.error('Connection test failed:', err)
-      return { success: false, message: err.message }
+      log.warn(`SSL connection failed, trying without SSL: ${err.message}`)
+
+      // Try without SSL
+      const client = new Client({
+        host: cluster.host,
+        port: cluster.port,
+        database: cluster.database,
+        user: cluster.username,
+        password: cluster.password,
+        connectionTimeoutMillis: 15000
+      })
+
+      try {
+        await client.connect()
+        const result = await client.query('SELECT version()')
+        await client.end()
+        log.info(`Non-SSL connection successful to ${cluster.host}:${cluster.port}`)
+        return { success: true, message: result.rows[0].version }
+      } catch (err2: any) {
+        log.error(`Connection failed (SSL and non-SSL): ${err2.message}`)
+        return { success: false, message: err2.message }
+      }
     }
   },
 
@@ -51,23 +78,49 @@ export const clusterManager = {
       currentConnection = null
     }
 
-    const client = new Client({
+    const sslOptions = { rejectUnauthorized: false }
+
+    // Try SSL first
+    const sslClient = new Client({
       host: clusterConfig.host,
       port: clusterConfig.port,
       database: clusterConfig.database,
       user: clusterConfig.user,
       password: clusterConfig.password,
-      connectionTimeoutMillis: 10000
+      connectionTimeoutMillis: 15000,
+      ssl: sslOptions
     })
 
+    let clientError = ''
+
     try {
-      await client.connect()
-      currentConnection = { clusterId, client }
-      log.info(`Connected to cluster: ${clusterId}`)
+      await sslClient.connect()
+      currentConnection = { clusterId, client: sslClient }
+      log.info(`Connected to cluster (SSL): ${clusterId}`)
       return { success: true }
     } catch (err: any) {
-      log.error('Connection failed:', err)
-      return { success: false, error: err.message }
+      log.warn(`SSL connection failed, trying without SSL: ${err.message}`)
+      clientError = err.message
+
+      // Try without SSL
+      const client = new Client({
+        host: clusterConfig.host,
+        port: clusterConfig.port,
+        database: clusterConfig.database,
+        user: clusterConfig.user,
+        password: clusterConfig.password,
+        connectionTimeoutMillis: 15000
+      })
+
+      try {
+        await client.connect()
+        currentConnection = { clusterId, client }
+        log.info(`Connected to cluster (non-SSL): ${clusterId}`)
+        return { success: true }
+      } catch (err2: any) {
+        log.error(`Connection failed: ${err2.message}`)
+        return { success: false, error: err2.message }
+      }
     }
   },
 

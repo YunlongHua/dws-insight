@@ -41,7 +41,7 @@ export default function ClusterModal({ visible, editingCluster, onClose, onSave,
         form.setFieldsValue({
           name: '',
           host: '',
-          port: 5432,
+          port: 8000,
           database: 'postgres',
           username: '',
           password: '',
