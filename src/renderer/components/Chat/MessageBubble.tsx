@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, DownOutlined, UpOutlined, ToolOutlined, SyncOutlined, RightOutlined } from '@ant-design/icons'
-import { Badge } from 'antd'
+import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, DownOutlined, UpOutlined, ToolOutlined, SyncOutlined, RightOutlined, CopyOutlined } from '@ant-design/icons'
+import { Badge, message } from 'antd'
 import type { ReactNode } from 'react'
 
 export type MessageType = 'user' | 'assistant' | 'system' | 'result' | 'error' | 'thinking' | 'tool'
@@ -103,6 +103,16 @@ export default function MessageBubble({ type, content, think: thinkProp, timesta
 
   const [thinkCollapsed, setThinkCollapsed] = useState(true)
   const [resultCollapsed, setResultCollapsed] = useState(true)
+
+  // Copy content to clipboard
+  const handleCopy = () => {
+    const textToCopy = typeof content === 'string' ? content : (content as ReactNode)?.toString() || ''
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      message.success('已复制')
+    }).catch(() => {
+      message.error('复制失败')
+    })
+  }
 
   // Get status icon
   const getStatusIcon = () => {
@@ -297,16 +307,37 @@ export default function MessageBubble({ type, content, think: thinkProp, timesta
             </div>
           )}
 
-          {timestamp && (
-            <div style={{
-              fontSize: 11,
-              color: type === 'user' ? 'rgba(255,255,255,0.7)' : '#94a3b8',
-              marginTop: 4,
-              textAlign: isUser ? 'right' : 'left',
-            }}>
-              {timestamp.toLocaleTimeString()}
-            </div>
-          )}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isUser ? 'flex-end' : 'flex-start',
+            gap: 8,
+            marginTop: 4,
+          }}>
+            {/* Copy button */}
+            <span
+              onClick={handleCopy}
+              style={{
+                fontSize: 11,
+                color: type === 'user' ? 'rgba(255,255,255,0.7)' : '#94a3b8',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+              }}
+            >
+              <CopyOutlined style={{ fontSize: 10 }} />
+            </span>
+
+            {timestamp && (
+              <span style={{
+                fontSize: 11,
+                color: type === 'user' ? 'rgba(255,255,255,0.7)' : '#94a3b8',
+              }}>
+                {timestamp.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

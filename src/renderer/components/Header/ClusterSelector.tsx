@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Select, Button, message } from 'antd'
-import { PlusOutlined, SettingOutlined, CheckCircleFilled, CloseCircleFilled, SyncOutlined } from '@ant-design/icons'
+import { Select, Button, message, Popconfirm } from 'antd'
+import { PlusOutlined, SettingOutlined, CheckCircleFilled, CloseCircleFilled, SyncOutlined, DeleteOutlined } from '@ant-design/icons'
 import ClusterModal from './ClusterModal'
 
 export interface Cluster {
@@ -142,13 +142,31 @@ export default function ClusterSelector({ value, onChange, onConnectionStatusCha
           onClick={handleAdd}
           style={{ borderRadius: 6, height: 26 }}
         />
-        <Button
-          size="small"
-          icon={<SettingOutlined />}
-          onClick={handleEdit}
-          disabled={!value}
-          style={{ borderRadius: 6, height: 26 }}
-        />
+
+        {/* Settings and Delete buttons on the right */}
+        {value && (
+          <>
+            <Popconfirm
+              title="确定删除此集群？"
+              onConfirm={() => handleDelete(value.id)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                size="small"
+                icon={<DeleteOutlined />}
+                style={{ borderRadius: 6, height: 26 }}
+              />
+            </Popconfirm>
+            <Button
+              size="small"
+              icon={<SettingOutlined />}
+              onClick={handleEdit}
+              style={{ borderRadius: 6, height: 26 }}
+            />
+          </>
+        )}
       </div>
 
       <ClusterModal
