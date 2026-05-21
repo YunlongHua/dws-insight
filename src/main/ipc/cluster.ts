@@ -37,7 +37,7 @@ export function registerClusterIPC(): void {
     }
   })
 
-  // cluster:get - get single cluster by id
+  // cluster:get - get single cluster by id (without password)
   ipcMain.handle('cluster:get', async (_, id: string) => {
     try {
       const cluster = getClusterById(id)
@@ -52,6 +52,26 @@ export function registerClusterIPC(): void {
       }
     } catch (err: any) {
       log.error('cluster:get error:', err)
+      return null
+    }
+  })
+
+  // cluster:getWithPassword - get cluster with password for connection test
+  ipcMain.handle('cluster:getWithPassword', async (_, id: string) => {
+    try {
+      const cluster = getClusterById(id)
+      if (!cluster) return null
+      return {
+        id: cluster.id,
+        name: cluster.name,
+        host: cluster.host,
+        port: cluster.port,
+        database: cluster.database,
+        username: cluster.user,
+        password: cluster.password
+      }
+    } catch (err: any) {
+      log.error('cluster:getWithPassword error:', err)
       return null
     }
   })
@@ -127,7 +147,7 @@ export function registerClusterIPC(): void {
     }
   })
 
-  // cluster:test - test connection
+  // cluster:test - test connection with provided credentials
   ipcMain.handle('cluster:test', async (_, cluster: Cluster) => {
     try {
       const result = await clusterManager.testConnection(cluster)
@@ -135,6 +155,31 @@ export function registerClusterIPC(): void {
       return result
     } catch (err: any) {
       log.error('cluster:test error:', err)
+      return { success: false, message: err.message }
+    }
+  })
+
+  // cluster:testById - test connection using saved credentials
+  ipcMain.handle('cluster:testById', async (_, clusterId: string) => {
+    try {
+      const cluster = getClusterById(clusterId)
+      if (!cluster) {
+        return { success: false, message: '集群不存在' }
+      }
+      log.info(`testById - cluster: ${JSON.stringify({ name: cluster.name, host: cluster.host, port: cluster.port, user: cluster.user, password: cluster.password ? '***' : 'EMPTY' })}`)
+      const result = await clusterManager.testConnection({
+        id: cluster.id,
+        name: cluster.name,
+        host: cluster.host,
+        port: cluster.port,
+        database: cluster.database,
+        username: cluster.user,
+        password: cluster.password || ''
+      })
+      log.info(`Cluster connection test by ID: ${clusterId}, success: ${result.success}`)
+      return result
+    } catch (err: any) {
+      log.error('cluster:testById error:', err)
       return { success: false, message: err.message }
     }
   })

@@ -65,15 +65,16 @@ export default function ClusterModal({ visible, editingCluster, onClose, onSave,
         host: values.host,
         port: values.port,
         database: values.database,
-        user: values.username,
+        username: values.username,
         password: values.password || '',
       })
       if (response?.success) {
         setTestResult({ success: true, message: '连接成功' })
         message.success('连接成功')
       } else {
-        setTestResult({ success: false, message: response?.error || '连接失败' })
-        message.error(response?.error || '连接失败')
+        const errorMsg = response?.error || response?.message || '连接失败'
+        setTestResult({ success: false, message: errorMsg })
+        message.error(`连接失败: ${errorMsg}`)
       }
     } catch (err: any) {
       setTestResult({ success: false, message: err.message })
@@ -95,6 +96,7 @@ export default function ClusterModal({ visible, editingCluster, onClose, onSave,
         port: values.port,
         database: values.database,
         username: values.username,
+        password: values.password,
       })
       onClose()
     })

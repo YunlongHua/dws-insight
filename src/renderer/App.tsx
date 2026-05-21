@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Layout, ConfigProvider, theme, message } from 'antd'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Layout, ConfigProvider, theme, message, Drawer, Tag } from 'antd'
+import { CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, RightOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import Header from './components/Header/Header'
 import { ChatContainer, InputArea } from './components/Chat'
 import type { Message } from './components/Chat'
@@ -43,6 +44,18 @@ interface LLMConfig {
   model?: string
 }
 
+interface ToolExecution {
+  id: string
+  toolName: string
+  displayName: string
+  command: string
+  result: string
+  status: 'running' | 'success' | 'error'
+  startTime: number
+  endTime?: number
+  duration?: number
+}
+
 const workflowPrompts = {
   tuning: '请输入需要调优的 SQL 语句，我会分析并给出优化建议。',
   report: '请描述您需要创建的测试报告需求，我会帮您生成测试用例并执行。',
@@ -54,6 +67,10 @@ export default function App() {
   const [modelConfig, setModelConfig] = useState<LLMConfig | undefined>()
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
+  const [toolExecutions, setToolExecutions] = useState<ToolExecution[]>([])
+  const [showToolDrawer, setShowToolDrawer] = useState(false)
+  const [collapsedTools, setCollapsedTools] = useState<Set<string>>(new Set())
+  const currentUserMsgIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const welcomeMessage: Message = {
@@ -76,11 +93,15 @@ export default function App() {
   const handleSend = useCallback(async (input: string) => {
     if (!input.trim()) return
 
+    const userMsgId = `user-${Date.now()}`
+    currentUserMsgIdRef.current = userMsgId
+
     const userMessage: Message = {
-      id: `user-${Date.now()}`,
+      id: userMsgId,
       type: 'user',
       content: input,
       timestamp: new Date(),
+      showToolExecutions: false,
     }
     setMessages(prev => [...prev, userMessage])
 
@@ -112,25 +133,102 @@ export default function App() {
   }, [currentWorkflow, currentCluster])
 
   const handleTuningWorkflow = async (input: string, thinkingId: string) => {
-    const response = await window.electronAPI?.llmChat({
-      messages: [
-        { role: 'system', content: '你是一个 SQL 调优专家。用户会输入 SQL 语句，你需要分析并给出优化建议。' },
-        { role: 'user', content: input }
-      ]
-    })
-
-    if (response.success) {
-      updateMessage(thinkingId, {
-        type: 'assistant',
-        content: response.content || '分析完成',
-        think: response.think,
-      })
-    } else {
+    if (!currentCluster?.id) {
       updateMessage(thinkingId, {
         type: 'error',
-        content: response.error || '调优分析失败',
+        content: '请先选择并连接集群',
       })
+      return
     }
+
+    // Clear previous tool executions
+    setToolExecutions([])
+    const currentUserMsgId = currentUserMsgIdRef.current
+
+    // Tool display names
+    const toolNames: Record<string, string> = {
+      getclusterinfo: '获取集群信息',
+      getschema: '获取表结构',
+      executesql: '执行 SQL',
+      getplan: '获取执行计划',
+      getstats: '获取统计信息',
+    }
+
+    // Listen for progress updates
+    const removeListener = window.electronAPI?.onTuningProgress?.((data) => {
+      if (data.type === 'final') {
+        // Final result - remove thinking message and add result at the end
+        setMessages(prev => prev.filter(msg => msg.id !== thinkingId))
+        if (data.error) {
+          setMessages(prev => [...prev, {
+            id: `result-${Date.now()}`,
+            type: 'error',
+            content: data.error,
+            timestamp: new Date(),
+          }])
+        } else {
+          setMessages(prev => [...prev, {
+            id: `result-${Date.now()}`,
+            type: 'result',
+            content: data.content || '分析完成',
+            think: data.think,
+            timestamp: new Date(),
+          }])
+        }
+        removeListener?.();
+      } else if (data.type === 'tool_start') {
+        // Add tool execution to state
+        const toolMsgId = data.toolMsgId || `tool-${Date.now()}`
+        const toolName = data.toolName || '工具'
+        const displayName = toolNames[toolName?.toLowerCase()] || toolName
+        const startTime = Date.now()
+        setToolExecutions(prev => {
+          const newExec = [...prev, {
+            id: toolMsgId,
+            toolName: toolName,
+            displayName: displayName,
+            command: data.toolCommand || '',
+            result: '执行中...',
+            status: 'running',
+            startTime,
+          }]
+          // Update user message to show tool executions button
+          if (currentUserMsgId) {
+            setMessages(msgPrev => msgPrev.map(msg =>
+              msg.id === currentUserMsgId
+                ? { ...msg, showToolExecutions: true, toolExecutionsCount: newExec.length }
+                : msg
+            ))
+          }
+          return newExec
+        })
+      } else if (data.type === 'tool_result' || data.type === 'tool_error') {
+        // Update the tool execution with duration
+        const toolMsgId = data.toolMsgId
+        setToolExecutions(prev => {
+          if (toolMsgId) {
+            const idx = prev.findIndex(t => t.id === toolMsgId)
+            if (idx !== -1) {
+              const updated = [...prev]
+              const endTime = Date.now()
+              const duration = endTime - updated[idx].startTime
+              updated[idx] = {
+                ...updated[idx],
+                result: data.error || (typeof data.toolResult === 'string' ? data.toolResult : JSON.stringify(data.toolResult, null, 2)),
+                status: data.error ? 'error' : 'success',
+                endTime,
+                duration,
+              }
+              return updated
+            }
+          }
+          return prev
+        })
+      }
+    });
+
+    // Start workflow
+    await window.electronAPI?.tuningWorkflow(currentCluster.id, input)
   }
 
   const handleReportWorkflow = async (input: string, thinkingId: string) => {
@@ -240,7 +338,20 @@ export default function App() {
     ))
   }
 
-  const handleStop = () => {
+  const toggleToolCollapsed = (id: string) => {
+    setCollapsedTools(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const handleStop = async () => {
+    await window.electronAPI?.tuningStop()
     setLoading(false)
     message.info('已停止')
   }
@@ -279,7 +390,10 @@ export default function App() {
             minHeight: 200,
             padding: '12px 16px',
           }}>
-            <ChatContainer messages={messages} />
+            <ChatContainer
+              messages={messages}
+              onShowToolExecutions={() => setShowToolDrawer(true)}
+            />
             <InputArea
               onSend={handleSend}
               onStop={handleStop}
@@ -287,6 +401,89 @@ export default function App() {
             />
           </div>
         </Content>
+
+        {/* Tool execution details drawer */}
+        <Drawer
+          title="调用过程详情"
+          placement="right"
+          width={500}
+          open={showToolDrawer}
+          onClose={() => setShowToolDrawer(false)}
+          styles={{ body: { padding: '16px' } }}
+        >
+          {toolExecutions.map((exec) => {
+            const isCollapsed = collapsedTools.has(exec.id)
+            return (
+              <div key={exec.id} style={{
+                marginBottom: 16,
+                background: '#fff',
+                border: '1px solid #e8e8e8',
+                borderRadius: 8,
+                overflow: 'hidden'
+              }}>
+                {/* Header - always visible, clickable */}
+                <div
+                  onClick={() => toggleToolCollapsed(exec.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 12px',
+                    background: exec.status === 'success' ? '#f6ffed' : exec.status === 'error' ? '#fff2f0' : '#f0f5ff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {exec.status === 'success' ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> :
+                   exec.status === 'error' ? <CloseCircleOutlined style={{ color: '#ff4d4f' }} /> :
+                   <SyncOutlined spin style={{ color: '#1890ff' }} />}
+                  <span style={{ fontWeight: 500 }}>{exec.displayName}</span>
+                  {exec.duration !== undefined && (
+                    <Tag color="default" style={{ marginLeft: 'auto' }}>{exec.duration}ms</Tag>
+                  )}
+                  {isCollapsed ? <DownOutlined style={{ marginLeft: 'auto' }} /> : <UpOutlined style={{ marginLeft: 'auto' }} />}
+                </div>
+
+                {/* Collapsible content */}
+                {!isCollapsed && (
+                  <div style={{ padding: 12 }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>执行命令:</div>
+                      <pre style={{
+                        margin: 0,
+                        padding: 8,
+                        background: '#f5f5f5',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'monospace',
+                        maxHeight: 150,
+                        overflow: 'auto'
+                      }}>
+                        {exec.command}
+                      </pre>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>执行结果:</div>
+                      <pre style={{
+                        margin: 0,
+                        padding: 8,
+                        background: exec.status === 'error' ? '#fff2f0' : '#f6ffed',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'monospace',
+                        maxHeight: 200,
+                        overflow: 'auto'
+                      }}>
+                        {exec.result}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </Drawer>
       </Layout>
     </ConfigProvider>
   )

@@ -91,22 +91,17 @@ export default function ClusterSelector({ value, onChange, onConnectionStatusCha
       setConnected(null)
       onChange(cluster)
       try {
-        const response = await window.electronAPI?.testCluster({
-          host: cluster.host,
-          port: cluster.port,
-          database: cluster.database,
-          user: cluster.username,
-          password: cluster.password || '',
-        })
+        const response = await window.electronAPI?.testClusterById(clusterId)
         if (response?.success) {
           setConnected(true)
         } else {
           setConnected(false)
-          message.error(response?.error || '连接失败')
+          const errorMsg = response?.error || response?.message || '连接失败'
+          message.error(`连接失败: ${errorMsg}`)
         }
       } catch (error: any) {
         setConnected(false)
-        message.error(error.message || '连接失败')
+        message.error(`连接失败: ${error.message || '网络错误'}`)
       } finally {
         setTesting(false)
       }

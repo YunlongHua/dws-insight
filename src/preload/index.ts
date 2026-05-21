@@ -1,5 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+// Progress event callback type
+type ProgressCallback = (data: { type: string; message: string; toolName?: string; toolCommand?: string; toolResult?: any; error?: string; content?: string; think?: string; toolMsgId?: string }) => void;
+
 interface Cluster {
   id: string;
   name: string;
@@ -7,6 +10,7 @@ interface Cluster {
   port: number;
   database: string;
   username: string;
+  password?: string;
 }
 
 interface LLMConfig {
@@ -41,6 +45,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteCluster: (id: string): Promise<boolean> => ipcRenderer.invoke('cluster:delete', id),
   testCluster: (cluster: Cluster): Promise<{ success: boolean; message: string }> =>
     ipcRenderer.invoke('cluster:test', cluster),
+  testClusterById: (clusterId: string): Promise<{ success: boolean; message: string }> =>
+    ipcRenderer.invoke('cluster:testById', clusterId),
   platform: process.platform,
   // LLM methods
   llmGetAll: (): Promise<{ success: boolean; data?: LLMConfig[]; error?: string }> =>
@@ -73,6 +79,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Tuning methods
   tuningAnalyze: (sql: string): Promise<{ success: boolean; suggestions?: any[]; error?: string }> =>
     ipcRenderer.invoke('tuning:analyze', sql),
+  tuningWorkflow: (clusterId: string, userInput: string): Promise<{ success: boolean; content?: string; think?: string; error?: string }> =>
+    ipcRenderer.invoke('tuning:workflow', clusterId, userInput),
   tuningSaveRecord: (record: {
     original_sql: string;
     optimized_sql: string;
@@ -109,6 +117,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('report:exportMarkdown', reportId, outputPath),
   reportExportPDF: (reportId: string, outputPath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('report:exportPDF', reportId, outputPath),
+  // Tuning progress events
+  onTuningProgress: (callback: ProgressCallback) => {
+    const handler = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('tuning:progress', handler);
+    return () => ipcRenderer.removeListener('tuning:progress', handler);
+  },
+  // Stop tuning workflow
+  tuningStop: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('tuning:stop'),
 });
 
 console.log('Preload script loaded');
